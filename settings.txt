@@ -1318,7 +1318,7 @@ rule("Check for last player surviving")
 			hasMoved))));
 		Set Move Speed(All Players(All Teams), 100);
 		Skip If(Not(Global Variable(CooldownDashingEnabled)), 1);
-		Set Ability 1 Enabled(All Living Players(All Teams), True);
+		Set Ability 1 Enabled(All Players(All Teams), True);
 		Set Global Variable(IsInFinalDuel, False);
 		Modify Player Score(Global Variable(PlayerWon), 1);
 		Stop Chasing Player Variable(All Players(All Teams), BouncePadCooldown);
