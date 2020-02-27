@@ -862,7 +862,7 @@ rule("Keep pushing player back inbounds")
 		Wait(0.250, Ignore Condition);
 		Loop If Condition Is True;
 		Stop Forcing Throttle(Event Player);
-		If(Or(Global Variable(BouncepadDashingEnabled), Global Variable(CooldownDashingEnabled)));
+		If(Global Variable(CooldownDashingEnabled));
 			Set Ability 1 Enabled(Event Player, True);
 		End;
 	}
