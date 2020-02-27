@@ -109,7 +109,7 @@ variables
 		9: IsDashEnabled
 }
 
-rule("// SETTINGS")
+rule("// SETTINGS - Easily turn on and off rules like dashing here")
 {
 	event
 	{
