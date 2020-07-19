@@ -1,0 +1,1798 @@
+settings
+{
+	main
+	{
+		Description: "Genji Dodgeball v5.1.0 Community Edition! Developed by u/Mazawath. Numerous updates by u/FearlessKat, u/Blink, u/TheRedstoneBlaze,  ELIMINATED#1572, and tumtum9000#1232. Deflect the ball when it is red to target someone else! Use jump pads to get air!"
+	}
+
+	lobby
+	{
+		Allow Players Who Are In Queue: Yes
+		Map Rotation: After A Game
+		Match Voice Chat: Enabled
+		Max Spectators: 12
+		Return To Lobby: Never
+	}
+
+	modes
+	{
+		Deathmatch
+		{
+			enabled maps
+			{
+				Workshop Island Night
+			}
+		}
+
+		General
+		{
+			Allow Hero Switching: Off
+			Game Length In Minutes: 15
+			Game Mode Start: Immediately
+			Hero Limit: Off
+			Respawn As Random Hero: On
+			Self Initiated Respawn: Off
+		}
+	}
+
+	heroes
+	{
+		General
+		{
+			Genji
+			{
+				Deflect Cooldown Time: 0%
+				No Ammunition Requirement: On
+				Primary Fire: Off
+				Quick Melee: Off
+				Secondary Fire: Off
+				Swift Strike Cooldown Time: 30%
+				Ultimate Generation - Combat Dragonblade: 0%
+				Ultimate Generation - Passive Dragonblade: 0%
+			}
+
+			enabled heroes
+			{
+				Genji
+			}
+		}
+	}
+}
+
+variables
+{
+	global:
+		0: SlotOfTargetedPlayer
+		1: SlotOfPreviousTargetedPlayer
+		2: BallSpeed
+		3: BallPosition
+		4: BallSpawnCountdown
+		5: BallIsOut
+		6: BallDeleteRequested
+		7: RoundInProgress
+		8: BouncePadCooldownLength
+		9: BallSpawnSpeed
+		10: MaxBallSpeed
+		11: IsInFinalDuel
+		12: BallSpawnCountdownHUD
+		13: BouncePadDistance
+		14: BouncePadStrength
+		15: BouncePad1
+		16: BouncePad2
+		17: BouncePad3
+		18: BouncePad4
+		19: deathSphere
+		20: deathSphereRad
+		21: IsEnoughPlayersToStart
+		22: WaitingForPlayersHUD
+		23: CenterOffLimitsSize
+		24: SphereSize
+		25: CircleCenter
+		26: RedGreenColorblindMode
+		27: WatermarkEnabled
+		28: BouncepadDashingEnabled
+		29: GameEndEnabled
+		30: CooldownDashingEnabled
+		31: deathSpherePos
+		32: deathBeam
+		33: BallDirection
+		34: BallCollisionSurfaceNormal
+		35: PrevBallPos
+		36: PrevBallPos2
+		37: BallSmoke
+		38: BallTail1
+		39: BallTail2
+		40: BallColor
+		41: HighestScore
+		42: TieBreakerActive
+
+	player:
+		0: hasMoved
+		1: CurrentUltPercent
+		2: BouncePadCooldown
+		4: PlayerDeflects
+		5: PlayerKills
+		6: PlayerDeaths
+		7: PlayerEffects
+		8: PlayerUI
+		9: IsDashEnabled
+		10: moveSpeed
+		11: maxBallSpeed
+}
+
+subroutines
+{
+	0: CoolDeathEffects
+}
+
+rule("// SETTINGS")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("Enable Watermark")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.WatermarkEnabled = True;
+	}
+}
+
+disabled rule("Enable Bouncepad Dashing (Use the bouncepad to get a dash) - Only enable one!")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.BouncepadDashingEnabled = True;
+	}
+}
+
+rule("Enable Cooldown Dashing (Configure the dash cooldown in custom game settings) - Only enable one!")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Skip If(Global.BouncepadDashingEnabled, 1);
+		Global.CooldownDashingEnabled = True;
+	}
+}
+
+disabled rule("Enable Red-Green Colorblind Filer")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.RedGreenColorblindMode = True;
+	}
+}
+
+rule("Enable game ending (NOTE: READ COMMENT INSIDE RULE BEFORE DISABLING)")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		"Currently, there is an issue where the server will end, based on how many players there are. If there are less it will take longer to crash. But it WILL crash. This rule simply lets there be a \"winner\" at the end VS crashing in the middle of Final Duel."
+		Global.GameEndEnabled = True;
+	}
+}
+
+rule("// MAP ZONES")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.SlotOfTargetedPlayer = 0;
+	}
+}
+
+rule("Set Workshop Island")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night)) == True;
+	}
+
+	actions
+	{
+		Global.CircleCenter = Vector(0, 1.199, 0);
+		Global.SphereSize = 60;
+	}
+}
+
+rule("Set Workshop Chamber")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Workshop Chamber);
+	}
+
+	actions
+	{
+		Global.CircleCenter = Vector(0, 1.199, 0);
+		Global.SphereSize = 29.700;
+	}
+}
+
+rule("Set Workshop Expanse Center")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Workshop Expanse);
+	}
+
+	actions
+	{
+		Global.CircleCenter = Vector(0, 1.199, 0);
+		Global.SphereSize = 20;
+	}
+}
+
+rule("Set Oasis University Center")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Oasis University);
+	}
+
+	actions
+	{
+		Global.CircleCenter = Vector(-192.609, 60.349, 2.252);
+		Global.SphereSize = 20;
+	}
+}
+
+rule("Set Kings Row center (NOTE: Lower the max players! This arena is smaller then the others!)")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(King's Row);
+	}
+
+	actions
+	{
+		Global.CircleCenter = Vector(-20.504, 40.538, -74.601);
+		Global.SphereSize = 17;
+	}
+}
+
+rule("Set Blizz World center (fun fact: you can't use the name of the company who made this game in rule names)")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Blizzard World);
+	}
+
+	actions
+	{
+		Global.CircleCenter = Vector(2.554, -4.651, -71.211);
+		Global.SphereSize = 20;
+	}
+}
+
+rule("// INITIALIZATION")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("Init player variables")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.IsDashEnabled = False;
+		Set Status(Event Player, Null, Invincible, 9999);
+		Skip If(Global.CooldownDashingEnabled, 1);
+		Set Ability 1 Enabled(Event Player, False);
+		Disable Built-In Game Mode Respawning(Event Player);
+		Enable Death Spectate All Players(Event Player);
+		Event Player.BouncePadCooldown = Global.BouncePadCooldownLength;
+	}
+}
+
+rule("Init global variables")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.SlotOfTargetedPlayer = -1;
+		Global.SlotOfPreviousTargetedPlayer = -1;
+		Global.BallSpawnCountdown = 3;
+		Disable Built-In Game Mode Scoring;
+		Disable Built-In Game Mode Completion;
+		Disable Built-In Game Mode Music;
+		Disable Built-In Game Mode Announcer;
+		Global.BouncePadStrength = 30;
+		Global.BouncePadDistance = 12;
+		Global.BallSpeed = 30;
+		Global.BallSpawnSpeed = 30;
+		Global.MaxBallSpeed = 1000;
+		Global.CenterOffLimitsSize = 3.500;
+		Global.IsInFinalDuel = False;
+		Global.BouncePadCooldownLength = 2;
+		Global.BallPosition = Vector(0, -1, 0);
+	}
+}
+
+rule("Create game sphere")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Create Effect(All Players(All Teams), Sphere, Sky Blue, Vector(X Component Of(Global.CircleCenter), Y Component Of(
+			Global.CircleCenter) - 0, Z Component Of(Global.CircleCenter)), Global.CenterOffLimitsSize, Visible To Position and Radius);
+		"Workshop Island doesn't need a circle."
+		If(Current Map != Map(Workshop Island) && Current Map != Map(Workshop Island Night));
+			Create Effect(All Players(All Teams), Light Shaft, Orange, Vector(X Component Of(Global.CircleCenter), Y Component Of(
+				Global.CircleCenter) - 15, Z Component Of(Global.CircleCenter)), Global.SphereSize, Visible To Position and Radius);
+		Else;
+			Create Effect(Filtered Array(All Players(All Teams), Distance Between(Position Of(Current Array Element), Global.CircleCenter)
+				>= Global.SphereSize - 10), Light Shaft, Green, Vector(X Component Of(Global.CircleCenter), Y Component Of(Global.CircleCenter)
+				- 15, Z Component Of(Global.CircleCenter)), Global.SphereSize, Visible To Position and Radius);
+		End;
+	}
+}
+
+rule("Create global HUD elements")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		"white normal"
+		Create HUD Text(Filtered Array(All Players(All Teams), Current Array Element != Players In Slot(Global.SlotOfTargetedPlayer,
+			All Teams)), Null, Null, Custom String("Current Player Targeted: {0}", Players In Slot(Global.SlotOfTargetedPlayer,
+			All Teams)), Left, -2, White, White, White, Visible To and String, Default Visibility);
+		"red when you're targeted"
+		Create HUD Text(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Null, Null, Custom String("Current Player Targeted: {0}",
+			Players In Slot(Global.SlotOfTargetedPlayer, All Teams)), Left, -2, White, White, Red, Visible To and String,
+			Default Visibility);
+		Create HUD Text(All Dead Players(All Teams), Custom String("Waiting for next round"), Custom String(
+			"You have been eliminated or joined during a round"), Custom String("You will spawn once the next round starts"), Top, 2,
+			White, White, White, Visible To and String, Default Visibility);
+		Skip If(Global.BouncepadDashingEnabled || Global.CooldownDashingEnabled, 2);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Current Dashing Mode: None"), Left, -1, White, White, White,
+			Visible To and String, Default Visibility);
+		Abort;
+		Skip If(Global.CooldownDashingEnabled, 2);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Current Dashing Mode: Bouncepad"), Left, -1, White, White,
+			White, Visible To and String, Default Visibility);
+		Abort;
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Current Dashing Mode: Cooldown"), Left, -1, White, White, White,
+			Visible To and String, Default Visibility);
+		"server load text for lobby owner only"
+		disabled Create HUD Text(Host Player, Null, Custom String("Server Load"), Server Load, Right, 0, White, White, White, Visible To and String,
+			Default Visibility);
+		disabled Create HUD Text(Host Player, Null, Custom String("Server Load Average"), Server Load Average, Right, 0, White, White, White,
+			Visible To and String, Default Visibility);
+		Create HUD Text(Host Player, Null, Custom String("Server Load Peak"), Server Load Peak, Right, 0, White, White, White,
+			Visible To and String, Default Visibility);
+		"gameplay tips text"
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("Deflect or Dash will deflect the ball to an enemy"), Right, -10,
+			White, White, White, Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Null, Custom String("If you get hit, you die.  Last man standing wins!"), Right, -9,
+			White, White, White, Visible To and String, Default Visibility);
+		"ball speed text color change with speed"
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.BallSpeed < 20), Null, Null, Custom String("Current Ball Speed: {0}",
+			Global.BallSpeed), Left, -3, White, White, Blue, Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.BallSpeed >= 20 && Global.BallSpeed < 25), Null, Null, Custom String(
+			"Current Ball Speed: {0}", Global.BallSpeed), Left, -3, White, White, Green, Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.BallSpeed >= 25 && Global.BallSpeed < 30), Null, Null, Custom String(
+			"Current Ball Speed: {0}", Global.BallSpeed), Left, -3, White, White, Yellow, Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.BallSpeed >= 30 && Global.BallSpeed < 35), Null, Null, Custom String(
+			"Current Ball Speed: {0}", Global.BallSpeed), Left, -3, White, White, Orange, Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.BallSpeed >= 35 && Global.BallSpeed < 55), Null, Null, Custom String(
+			"Current Ball Speed: {0}", Global.BallSpeed), Left, -3, White, White, Red, Visible To and String, Default Visibility);
+		Create HUD Text(Filtered Array(All Players(All Teams), Global.BallSpeed > 55), Null, Null, Custom String("Current Ball Speed: {0}",
+			Global.BallSpeed), Left, -3, White, White, Purple, Visible To and String, Default Visibility);
+		Create HUD Text(All Players(All Teams), Null, Custom String(
+			"Updates by u/FearlessKat, u/Blink, u/TheRedstoneBlaze, tumtum9000#1232"), Null, Left, -10, White, White, White,
+			Visible To and String, Default Visibility);
+	}
+}
+
+rule("Create player HUD elements")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Create HUD Text(Event Player, Event Player.PlayerDeflects, Custom String("Deflects"), Null, Left, 1, Yellow, White, Yellow,
+			Visible To and String, Default Visibility);
+		Event Player.PlayerUI[1] = Last Created Entity;
+		Create HUD Text(Event Player, Event Player.PlayerKills, Custom String("Kills"), Null, Left, 2, Orange, White, Orange,
+			Visible To and String, Default Visibility);
+		Event Player.PlayerUI[2] = Last Created Entity;
+		Create HUD Text(Event Player, Event Player.PlayerDeaths, Custom String("Deaths"), Null, Left, 3, Sky Blue, White, Sky Blue,
+			Visible To and String, Default Visibility);
+		Event Player.PlayerUI[3] = Last Created Entity;
+		Create HUD Text(Event Player, Event Player.maxBallSpeed, Custom String("Max Deflect Speed"), Null, Left, 4, Red, White, Turquoise,
+			Visible To and String, Default Visibility);
+		Event Player.PlayerUI[4] = Last Created Entity;
+		Create HUD Text(Event Player, Round To Integer(Event Player.BouncePadCooldown, Up), Custom String("Bouncepad"), Custom String(
+			"Cooldown"), Right, -1, Green, White, White, Visible To and String, Default Visibility);
+		Event Player.PlayerUI[5] = Last Created Entity;
+	}
+}
+
+rule("Create bounce pads")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.BouncePad1 = Vector(X Component Of(Global.CircleCenter) + Global.BouncePadDistance, Y Component Of(Global.CircleCenter),
+			Z Component Of(Global.CircleCenter));
+		Global.BouncePad2 = Vector(X Component Of(Global.CircleCenter) + Global.BouncePadDistance * -1, Y Component Of(
+			Global.CircleCenter), Z Component Of(Global.CircleCenter));
+		Global.BouncePad3 = Vector(X Component Of(Global.CircleCenter), Y Component Of(Global.CircleCenter), Z Component Of(
+			Global.CircleCenter) + Global.BouncePadDistance * 1);
+		Global.BouncePad4 = Vector(X Component Of(Global.CircleCenter), Y Component Of(Global.CircleCenter), Z Component Of(
+			Global.CircleCenter) + Global.BouncePadDistance * -1);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown == 0), Ring, Green, Global.BouncePad1,
+			2, Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown == 0), Ring, Green, Global.BouncePad2,
+			2, Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown == 0), Ring, Green, Global.BouncePad3,
+			2, Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown == 0), Ring, Green, Global.BouncePad4,
+			2, Visible To Position and Radius);
+		Skip If(Global.RedGreenColorblindMode, 5);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Red, Global.BouncePad1, 2,
+			Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Red, Global.BouncePad2, 2,
+			Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Red, Global.BouncePad3, 2,
+			Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Red, Global.BouncePad4, 2,
+			Visible To Position and Radius);
+		Abort;
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Yellow, Global.BouncePad1,
+			2, Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Yellow, Global.BouncePad2,
+			2, Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Yellow, Global.BouncePad3,
+			2, Visible To Position and Radius);
+		Create Effect(Filtered Array(All Players(All Teams), Current Array Element.BouncePadCooldown > 0), Ring, Yellow, Global.BouncePad4,
+			2, Visible To Position and Radius);
+	}
+}
+
+rule("Create ball & targeted effect")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Create Effect(Filtered Array(All Players(All Teams), Slot Of(Current Array Element) != Global.SlotOfTargetedPlayer), Orb, White,
+			Global.BallPosition, 0.400, Visible To Position and Radius);
+		If(!Global.RedGreenColorblindMode);
+			Create Effect(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Orb, Red, Global.BallPosition, 0.400,
+				Visible To Position and Radius);
+			Create Effect(Filtered Array(All Players(All Teams), Slot Of(Current Array Element) != Global.SlotOfTargetedPlayer), Good Aura,
+				Red, Players In Slot(Global.SlotOfTargetedPlayer, All Teams), 1, Visible To Position and Radius);
+			Create Effect(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Good Aura, Red, Players In Slot(Global.SlotOfTargetedPlayer,
+				All Teams), 1, Visible To Position and Radius);
+			Create Effect(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Good Aura, Red, Global.BallPosition, 1,
+				Visible To Position and Radius);
+		Else;
+			Create Effect(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Orb, Yellow, Global.BallPosition, 0.400,
+				Visible To Position and Radius);
+			Create Effect(All Players(All Teams), Good Aura, Yellow, Players In Slot(Global.SlotOfTargetedPlayer, All Teams), 1,
+				Visible To Position and Radius);
+			Create Effect(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Good Aura, Yellow, Eye Position(Players In Slot(
+				Global.SlotOfTargetedPlayer, All Teams)), 1, Visible To Position and Radius);
+		End;
+		"ball trail change color with speed"
+		disabled Create Effect(All Players(All Teams), Bad Aura, Blue, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Blue,
+			Visible To Position and Radius);
+		disabled Global.BallTail1 = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Blue,
+			Visible To Position and Radius);
+		disabled Global.BallTail2 = Last Created Entity;
+	}
+}
+
+rule("Create ball countdown HUD")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallSpawnCountdown > 0;
+	}
+
+	actions
+	{
+		Create In-World Text(All Players(All Teams), Custom String("Ball Spawning In: {0}", Round To Integer(Global.BallSpawnCountdown,
+			Up)), Vector(X Component Of(Global.CircleCenter), Y Component Of(Global.CircleCenter) + 2.500, Z Component Of(
+			Global.CircleCenter)), 10, Clip Against Surfaces, Visible To Position and String, Sky Blue, Default Visibility);
+		Global.BallSpawnCountdownHUD = Last Text ID;
+	}
+}
+
+rule("Delete ball countdown HUD")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallSpawnCountdown == 0;
+	}
+
+	actions
+	{
+		Destroy In-World Text(Global.BallSpawnCountdownHUD);
+	}
+}
+
+rule("// Not enough players testing")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Skip If(!Global.WatermarkEnabled, 1);
+		"Please don't be a child and try to take credit for this game. If you actually have contributed something you are free to add here. But if not, don't touch this. You are free to disable it."
+		Create HUD Text(All Players(All Teams), Null, Custom String("Original by u/Mazawrath. Version v5.1.0"), Null, Left, -1000, White,
+			Aqua, White, Visible To and String, Visible Always);
+	}
+}
+
+rule("Check for <2 players")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Number of Players(All Teams) == 1;
+	}
+
+	actions
+	{
+		Global.IsInFinalDuel = False;
+		Create HUD Text(All Players(All Teams), Custom String("Waiting for more players"), Null, Null, Top, 0, White, White, White,
+			Visible To and String, Default Visibility);
+		Global.WaitingForPlayersHUD = Last Text ID;
+		Global.IsEnoughPlayersToStart = False;
+		Stop Chasing Global Variable(BallSpawnCountdown);
+		Skip If(Global.RoundInProgress == False, 1);
+		Global.BallDeleteRequested = True;
+		Global.RoundInProgress = False;
+		Pause Match Time;
+	}
+}
+
+rule("Wait for more players")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Number of Players(All Teams) > 1;
+		Global.IsEnoughPlayersToStart == False;
+	}
+
+	actions
+	{
+		Destroy HUD Text(Global.WaitingForPlayersHUD);
+		Big Message(All Players(All Teams), Custom String("Starting game in 5 seconds!"));
+		Wait(5.500, Ignore Condition);
+		Abort If(Number of Players(All Teams) < 2);
+		Unpause Match Time;
+		Global.IsEnoughPlayersToStart = True;
+		Global.SlotOfTargetedPlayer = -1;
+		Global.SlotOfPreviousTargetedPlayer = -1;
+	}
+}
+
+rule("// GAME RULES")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("Player joins game")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.hasMoved == False;
+		disabled Is Game In Progress == True;
+		Has Spawned(Event Player) == True;
+	}
+
+	actions
+	{
+		Skip If(!Global.RoundInProgress || !Is Game In Progress, 1);
+		Kill(Event Player, Null);
+		Teleport(Event Player, Global.CircleCenter + Vector(Random Integer(-10, 10), 8, Random Integer(-10, 10)));
+		Event Player.hasMoved = True;
+	}
+}
+
+rule("Shorten Deflect Length")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Using Ability 2(Event Player) == True;
+		Is Using Ultimate(Event Player) == False;
+	}
+
+	actions
+	{
+		Wait(0.300, Ignore Condition);
+		Set Ability 2 Enabled(Event Player, False);
+		Set Ability 1 Enabled(Event Player, False);
+		Wait(0.500, Ignore Condition);
+		Set Ability 2 Enabled(Event Player, True);
+		Set Ability 1 Enabled(Event Player, True);
+	}
+}
+
+rule("Unlock dash after using jumppad")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Global.BouncepadDashingEnabled == True;
+		Event Player.IsDashEnabled == True;
+	}
+
+	actions
+	{
+		Set Ability 1 Enabled(Event Player, True);
+	}
+}
+
+rule("Disable dash after using")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Global.BouncepadDashingEnabled == True;
+		Is Using Ability 1(Event Player) == True;
+	}
+
+	actions
+	{
+		Set Ability 1 Enabled(Event Player, False);
+		Event Player.IsDashEnabled = False;
+	}
+}
+
+rule("Target random player")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Global.SlotOfTargetedPlayer == -1;
+	}
+
+	actions
+	{
+		Global.SlotOfTargetedPlayer = Slot Of(Random Value In Array(Filtered Array(All Living Players(All Teams),
+			Current Array Element.hasMoved && Global.SlotOfPreviousTargetedPlayer != Slot Of(Players In Slot(Current Array Element,
+			All Teams)))));
+	}
+}
+
+rule("Push to circle")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Vector(X Component Of(Global.CircleCenter), Y Component Of(Position Of(Event Player)),
+			Z Component Of(Global.CircleCenter))) > Global.SphereSize - 1.500;
+		"Workshop Island Fix"
+		Current Map != Map(Workshop Island);
+		Current Map != Map(Workshop Island Night);
+	}
+
+	actions
+	{
+		Apply Impulse(Event Player, Vector(X Component Of(Direction Towards(Position Of(Event Player), Global.CircleCenter)), 0,
+			Z Component Of(Direction Towards(Position Of(Event Player), Global.CircleCenter))), 6, To World, Cancel Contrary Motion);
+		Apply Impulse(Event Player, Up, 3, To World, Incorporate Contrary Motion);
+		Wait(0.250, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Put out center")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Global.CircleCenter) < Global.CenterOffLimitsSize + 0.500;
+	}
+
+	actions
+	{
+		Apply Impulse(Event Player, Direction Towards(Global.CircleCenter, Event Player), 10, To World, Cancel Contrary Motion);
+		Apply Impulse(Event Player, Up, 1.500, To World, Incorporate Contrary Motion);
+		Wait(0.250, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Player dashes too far out of bounds")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Vector(X Component Of(Global.CircleCenter), Y Component Of(Position Of(Event Player)),
+			Z Component Of(Global.CircleCenter))) > Global.SphereSize + 1;
+		"Workshop Island Fix"
+		disabled (Current Map != Map(Workshop Island) && Current Map != Map(Workshop Island Night)) == True;
+	}
+
+	actions
+	{
+		Set Status(Event Player, Null, Knocked Down, 2.500);
+		disabled Teleport(Event Player, Global.CircleCenter + Vector(Random Integer(-15, 15), 8, Random Integer(-15, 15)));
+		Apply Impulse(Event Player, Vector(X Component Of(Direction Towards(Position Of(Event Player), Global.CircleCenter)), 0,
+			Z Component Of(Direction Towards(Position Of(Event Player), Global.CircleCenter))), 20, To World, Cancel Contrary Motion);
+		Apply Impulse(Event Player, Up, 3, To World, Cancel Contrary Motion);
+		Big Message(Event Player, Custom String("Do not dash out of the arena!"));
+	}
+}
+
+rule("Player tries to abuse ledge on Workshop Island (push up and to center)")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Y Component Of(Position Of(Event Player)) < -0.250;
+		Is Alive(Event Player) == True;
+		"Workshop Island Fix"
+		(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night)) == True;
+	}
+
+	actions
+	{
+		"Prevents people from going under the ledge on Workshop Island, which caused ball to go into floor.  Used to be an annoying stunkill"
+		Apply Impulse(Event Player, Up, 2, To World, Cancel Contrary Motion);
+		Apply Impulse(Event Player, Direction Towards(Event Player, Global.CircleCenter), 2, To World, Incorporate Contrary Motion);
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Player falls off Workshop Island")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night)) == True;
+		Y Component Of(Position Of(Event Player)) < -0.500;
+	}
+
+	actions
+	{
+		"A MAN HAS FALLEN INTO THE LAKE IN WORKSHOP ISLAND! START THE NEW RESCUE RULE! HEY! BUILD THE NEW WORSHOP RULE, AND OFF TO THE RESCUE! PREPARE THE CONDITION, TELEPORT THE PLAYER, AND MAKE THE RESCUE! THE NEW 2.3.0 UPDATE FROM OVERWATCH WORKSHOP!"
+		If(!Is Alive(Event Player));
+			Teleport(Event Player, Global.CircleCenter + Vector(Random Integer(-10, 10), 8, Random Integer(-10, 10)));
+			If(Slot Of(Event Player) == Global.SlotOfTargetedPlayer);
+				If(Global.BallIsOut);
+					Global.BallDeleteRequested = True;
+				End;
+			End;
+		End;
+		Wait(0.500, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Bounce when near pad 1")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Global.BouncePad1) <= 2.750;
+		Event Player.BouncePadCooldown == 0;
+		Is Alive(Event Player) == True;
+		Is Button Held(Event Player, Jump) == True;
+	}
+
+	actions
+	{
+		Event Player.IsDashEnabled = True;
+		Apply Impulse(Event Player, Up, Global.BouncePadStrength, To World, Cancel Contrary Motion);
+		Event Player.BouncePadCooldown = Global.BouncePadCooldownLength;
+		Play Effect(All Players(All Teams), Ring Explosion Sound, White, Global.BouncePad1, 25);
+		Play Effect(All Players(All Teams), Good Pickup Effect, White, Global.BouncePad1, 2);
+		Create Effect(All Players(All Teams), Bad Aura, White, Event Player, 0.750, Visible To Position and Radius);
+		Event Player.PlayerEffects[1] = Last Created Entity;
+		Wait(2, Ignore Condition);
+		Destroy Effect(Event Player.PlayerEffects[1]);
+	}
+}
+
+rule("Bounce when near pad 2")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Global.BouncePad2) <= 2.750;
+		Event Player.BouncePadCooldown == 0;
+		Is Alive(Event Player) == True;
+		Is Button Held(Event Player, Jump) == True;
+	}
+
+	actions
+	{
+		Event Player.IsDashEnabled = True;
+		Apply Impulse(Event Player, Up, Global.BouncePadStrength, To World, Cancel Contrary Motion);
+		Event Player.BouncePadCooldown = Global.BouncePadCooldownLength;
+		Play Effect(All Players(All Teams), Ring Explosion Sound, White, Global.BouncePad1, 25);
+		Play Effect(All Players(All Teams), Good Pickup Effect, White, Global.BouncePad2, 2);
+		Create Effect(All Players(All Teams), Bad Aura, White, Event Player, 0.750, Visible To Position and Radius);
+		Event Player.PlayerEffects[1] = Last Created Entity;
+		Wait(2, Ignore Condition);
+		Destroy Effect(Event Player.PlayerEffects[1]);
+	}
+}
+
+rule("Bounce when near pad 3")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Global.BouncePad3) <= 2.750;
+		Event Player.BouncePadCooldown == 0;
+		Is Alive(Event Player) == True;
+		Is Button Held(Event Player, Jump) == True;
+	}
+
+	actions
+	{
+		Event Player.IsDashEnabled = True;
+		Apply Impulse(Event Player, Up, Global.BouncePadStrength, To World, Cancel Contrary Motion);
+		Event Player.BouncePadCooldown = Global.BouncePadCooldownLength;
+		Play Effect(All Players(All Teams), Ring Explosion Sound, White, Global.BouncePad1, 25);
+		Play Effect(All Players(All Teams), Good Pickup Effect, White, Global.BouncePad3, 2);
+		Create Effect(All Players(All Teams), Bad Aura, White, Event Player, 0.750, Visible To Position and Radius);
+		Event Player.PlayerEffects[1] = Last Created Entity;
+		Wait(2, Ignore Condition);
+		Destroy Effect(Event Player.PlayerEffects[1]);
+	}
+}
+
+rule("Bounce when near pad 4")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Distance Between(Position Of(Event Player), Global.BouncePad4) <= 2.750;
+		Event Player.BouncePadCooldown == 0;
+		Is Alive(Event Player) == True;
+		Is Button Held(Event Player, Jump) == True;
+	}
+
+	actions
+	{
+		Event Player.IsDashEnabled = True;
+		Apply Impulse(Event Player, Up, Global.BouncePadStrength, To World, Cancel Contrary Motion);
+		Event Player.BouncePadCooldown = Global.BouncePadCooldownLength;
+		Play Effect(All Players(All Teams), Ring Explosion Sound, White, Global.BouncePad1, 25);
+		Play Effect(All Players(All Teams), Good Pickup Effect, White, Global.BouncePad4, 2);
+		Create Effect(All Players(All Teams), Bad Aura, White, Event Player, 0.750, Visible To Position and Radius);
+		Event Player.PlayerEffects[1] = Last Created Entity;
+		Wait(2, Ignore Condition);
+		Destroy Effect(Event Player.PlayerEffects[1]);
+	}
+}
+
+rule("Ball delete requested")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallDeleteRequested == True;
+	}
+
+	actions
+	{
+		Global.BallDeleteRequested = False;
+		Global.SlotOfTargetedPlayer = -1;
+		Stop Chasing Global Variable(BallDirection);
+		Stop Chasing Global Variable(BallPosition);
+		Stop Chasing Global Variable(BallSpeed);
+		Global.BallPosition = Vector(0, -1, 0);
+		Global.BallDirection = Vector(0, 0, 0);
+		Global.BallIsOut = False;
+		Global.SlotOfPreviousTargetedPlayer = -1;
+		Global.BallSpawnCountdown = 2;
+		Global.PrevBallPos = Vector(0, 0, 0);
+		Global.PrevBallPos2 = Vector(0, 0, 0);
+	}
+}
+
+rule("Ball repsawn")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Custom String("{0}", Event Player) == Custom String("Smokey");
+	}
+
+	actions
+	{
+		Kill(Event Player, Null);
+	}
+}
+
+rule("Only end game when there isn't a round in progress")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Match Time == 0;
+		Global.RoundInProgress == False;
+		Global.GameEndEnabled == True;
+		Global.TieBreakerActive == False;
+	}
+
+	actions
+	{
+		Enable Built-In Game Mode Music;
+		Enable Built-In Game Mode Completion;
+	}
+}
+
+rule("primary = dash")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Primary Fire) == True;
+		Custom String("{0}", Event Player) != Custom String("bytestats");
+	}
+
+	actions
+	{
+		Press Button(Event Player, Ability 1);
+	}
+}
+
+rule("secondary = deflect")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Secondary Fire) == True;
+		Custom String("{0}", Event Player) != Custom String("bytestats");
+	}
+
+	actions
+	{
+		Press Button(Event Player, Ability 2);
+	}
+}
+
+rule("// ACTIVE GAME")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("Start round")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.IsEnoughPlayersToStart == True;
+		Is Game In Progress == True;
+	}
+
+	actions
+	{
+		Chase Global Variable At Rate(BallSpawnCountdown, 0, 1, Destination and Rate);
+		Global.RoundInProgress = True;
+		Chase Player Variable At Rate(All Players(All Teams), BouncePadCooldown, 0, 1, Destination and Rate);
+		Global.BallSpawnCountdown = 5;
+	}
+}
+
+rule("Spawn ball")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallSpawnCountdown == 0;
+	}
+
+	actions
+	{
+		Global.BallPosition = Global.CircleCenter;
+		Global.BallDirection = Direction Towards(Global.BallPosition, Eye Position(Players In Slot(Global.SlotOfTargetedPlayer,
+			All Teams)));
+		Global.BallSpeed = Min(25, Global.BallSpeed);
+		Global.BallIsOut = True;
+	}
+}
+
+rule("ball motion (has to be done weird due to chase vector variable bugs)")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallIsOut == True;
+	}
+
+	actions
+	{
+		Global.PrevBallPos2 = Global.PrevBallPos;
+		Global.PrevBallPos = Global.BallPosition;
+		Chase Global Variable At Rate(BallPosition, Global.BallPosition + Global.BallDirection * Global.BallSpeed * 1, Global.BallSpeed,
+			Destination and Rate);
+		Chase Global Variable At Rate(BallDirection, Direction Towards(Global.BallPosition, Eye Position(Players In Slot(
+			Global.SlotOfTargetedPlayer, All Teams))), 1.750, Destination and Rate);
+		Chase Global Variable At Rate(BallSpeed, Global.MaxBallSpeed, 0.500, Destination and Rate);
+		Wait(0.050, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Ball reaches player")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Distance Between(Global.BallPosition, Eye Position(Players In Slot(Global.SlotOfTargetedPlayer, All Teams))) <= 1.900;
+		Global.BallIsOut == True;
+	}
+
+	actions
+	{
+		Skip If(Is Using Ability 2(Players In Slot(Global.SlotOfTargetedPlayer, All Teams)) || Is Using Ability 1(Players In Slot(
+			Global.SlotOfTargetedPlayer, All Teams)), 9);
+		Set Status(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Players In Slot(Global.SlotOfPreviousTargetedPlayer,
+			All Teams), Stunned, 1);
+		Call Subroutine(CoolDeathEffects);
+		Players In Slot(Global.SlotOfTargetedPlayer, All Teams).BouncePadCooldown = 0;
+		Players In Slot(Global.SlotOfPreviousTargetedPlayer, All Teams).CurrentUltPercent += 15;
+		Kill(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Players In Slot(Global.SlotOfPreviousTargetedPlayer, All Teams));
+		Players In Slot(Global.SlotOfTargetedPlayer, All Teams).PlayerDeaths += 1;
+		Players In Slot(Global.SlotOfPreviousTargetedPlayer, All Teams).PlayerKills += 1;
+		Global.BallDeleteRequested = True;
+		Abort;
+		If(Is Using Ability 1(Players In Slot(Global.SlotOfTargetedPlayer, All Teams)));
+			Set Status(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Null, Knocked Down, 1);
+			Teleport(Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Global.BallPosition);
+		End;
+		Players In Slot(Global.SlotOfTargetedPlayer, All Teams).CurrentUltPercent += 5;
+		Play Effect(All Players(All Teams), Explosion Sound, White, Position Of(Players In Slot(Global.SlotOfTargetedPlayer, All Teams)),
+			200);
+		Players In Slot(Global.SlotOfTargetedPlayer, All Teams).PlayerDeflects += 1;
+		Global.SlotOfPreviousTargetedPlayer = Global.SlotOfTargetedPlayer;
+		Global.BallSpeed = Min(500, Global.BallSpeed * 1.050);
+		If(Global.BallSpeed > Players In Slot(Global.SlotOfTargetedPlayer, All Teams).maxBallSpeed);
+			Players In Slot(Global.SlotOfTargetedPlayer, All Teams).maxBallSpeed = Global.BallSpeed;
+		End;
+		Stop Chasing Global Variable(BallDirection);
+		Global.BallDirection = Facing Direction Of(Players In Slot(Global.SlotOfTargetedPlayer, All Teams));
+		Wait(0.001, Ignore Condition);
+		Global.SlotOfTargetedPlayer = Slot Of(First Of(Sorted Array(Filtered Array(All Living Players(All Teams), Slot Of(
+			Current Array Element) != Global.SlotOfPreviousTargetedPlayer), Angle Between Vectors(Facing Direction Of(Players In Slot(
+			Global.SlotOfTargetedPlayer, All Teams)), Direction Towards(Players In Slot(Global.SlotOfTargetedPlayer, All Teams),
+			Position Of(Current Array Element))))));
+		Chase Global Variable At Rate(BallDirection, Direction Towards(Global.BallPosition, Eye Position(Players In Slot(
+			Global.SlotOfTargetedPlayer, All Teams))), 6, Destination and Rate);
+		Loop If Condition Is True;
+	}
+}
+
+rule("CoolDeathEffects sub")
+{
+	event
+	{
+		Subroutine;
+		CoolDeathEffects;
+	}
+
+	actions
+	{
+		Create Beam Effect(All Players(All Teams), Bad Beam, Players In Slot(Global.SlotOfPreviousTargetedPlayer, All Teams),
+			Players In Slot(Global.SlotOfTargetedPlayer, All Teams), Red, Visible To Position and Radius);
+		Global.deathBeam = Last Created Entity;
+		Global.deathSpherePos = Position Of(Players In Slot(Global.SlotOfTargetedPlayer, All Teams));
+		Global.deathSphereRad = 30;
+		Chase Global Variable Over Time(deathSphereRad, 0, 0.250, Destination and Duration);
+		Play Effect(All Players(All Teams), Ring Explosion Sound, White, Global.deathSpherePos, 40);
+		Create Effect(All Players(All Teams), Sphere, Red, Global.deathSpherePos, Global.deathSphereRad, Visible To Position and Radius);
+		Global.deathSphere = Last Created Entity;
+		Play Effect(All Players(All Teams), Good Explosion, White, Global.deathSpherePos, 5);
+		Wait(0.250, Ignore Condition);
+		Destroy Effect(Global.deathSphere);
+		disabled Play Effect(All Players(All Teams), Ring Explosion, Red, Global.deathSpherePos, Global.SphereSize * 1.500);
+		disabled Play Effect(All Players(All Teams), Explosion Sound, White, Global.deathSpherePos, 40);
+		Destroy Effect(Global.deathBeam);
+	}
+}
+
+rule("Final duel")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Count Of(Filtered Array(All Living Players(All Teams), Current Array Element.hasMoved)) == 2;
+		Global.IsEnoughPlayersToStart == True;
+		Global.IsInFinalDuel == False;
+	}
+
+	actions
+	{
+		All Living Players(All Teams).IsDashEnabled = False;
+		Skip If(Global.BallIsOut == False, 1);
+		Global.BallDeleteRequested = True;
+		Global.IsInFinalDuel = True;
+		All Living Players(All Teams).BouncePadCooldown = Global.BouncePadCooldownLength;
+		Skip If(Number of Players(All Teams) <= 2, 1);
+		Big Message(All Players(All Teams), Custom String("Final Duel!"));
+		Apply Impulse(All Living Players(All Teams), Down, 0.001, To World, Cancel Contrary Motion);
+		Apply Impulse(All Living Players(All Teams), Up, 0.001, To World, Cancel Contrary Motion);
+		Apply Impulse(All Living Players(All Teams), Backward, 0.001, To World, Cancel Contrary Motion);
+		Apply Impulse(All Living Players(All Teams), Forward, 0.001, To World, Cancel Contrary Motion);
+		Apply Impulse(All Living Players(All Teams), Right, 0.001, To World, Cancel Contrary Motion);
+		Apply Impulse(All Living Players(All Teams), Left, 0.001, To World, Cancel Contrary Motion);
+		If(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night));
+			Teleport(All Living Players(All Teams)[0], Global.CircleCenter + Vector(-1, 0, 0) * (Global.SphereSize / 4));
+			Teleport(All Living Players(All Teams)[1], Global.CircleCenter + Vector(1, 0, 0) * (Global.SphereSize / 4));
+		Else;
+			Teleport(All Living Players(All Teams)[0], Global.CircleCenter + Vector(-1, 0, 0) * (Global.SphereSize / 1.500));
+			Teleport(All Living Players(All Teams)[1], Global.CircleCenter + Vector(1, 0, 0) * (Global.SphereSize / 1.500));
+		End;
+		Set Facing(All Living Players(All Teams)[0], Direction Towards(All Living Players(All Teams)[0], Global.CircleCenter), To World);
+		Set Facing(All Living Players(All Teams)[1], Direction Towards(All Living Players(All Teams)[1], Global.CircleCenter), To World);
+		Set Status(All Living Players(All Teams), Null, Rooted, 2);
+	}
+}
+
+rule("Check for last player surviving")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Number of Living Players(All Teams) == 1;
+		Global.IsEnoughPlayersToStart == True;
+	}
+
+	actions
+	{
+		Global.IsInFinalDuel = False;
+		Modify Player Score(All Living Players(All Teams), 1);
+		Wait(0.250, Ignore Condition);
+		If((Match Time == 0 || Global.TieBreakerActive) && Global.GameEndEnabled);
+			"If there is alredy a tiebreaker, then the tiebreaker has ended."
+			disabled If(Global.TieBreakerActive);
+			disabled Break;
+			disabled End;
+			Global.HighestScore = Score Of(Last Of(Sorted Array(All Players(All Teams), Score Of(Current Array Element))));
+			"Check if there is more then 1 person with the highest score"
+			If(Count Of(Filtered Array(All Players(All Teams), Score Of(Current Array Element) == Global.HighestScore)) > 1);
+				"There is more then 1, activate tie breaker"
+				Global.TieBreakerActive = True;
+			Else;
+				Global.TieBreakerActive = False;
+			End;
+		End;
+		Stop Chasing Global Variable(BallSpawnCountdown);
+		Stop Chasing Player Variable(All Players(All Teams), BouncePadCooldown);
+		Big Message(All Players(All Teams), Custom String("{0} has won the round!", First Of(All Living Players(All Teams))));
+		Wait(2, Ignore Condition);
+		If(!Global.TieBreakerActive);
+			Resurrect(All Dead Players(All Teams));
+		Else;
+			"Kill anyone alive who doesn't have the highest score."
+			Kill(Filtered Array(All Living Players(All Teams), Score Of(Current Array Element) != Global.HighestScore), Null);
+			"During tiebreaker, only revive the people who have the same score as the highest score."
+			Resurrect(Filtered Array(All Dead Players(All Teams), Score Of(Current Array Element) == Global.HighestScore));
+			Wait(0.250, Ignore Condition);
+			Global.SlotOfTargetedPlayer = -1;
+			Big Message(All Players(All Teams), Custom String("Tiebreaker!"));
+		End;
+		Abort If(!Global.IsEnoughPlayersToStart);
+		Global.RoundInProgress = False;
+		All Players(All Teams).BouncePadCooldown = Global.BouncePadCooldownLength;
+		Global.SlotOfTargetedPlayer = -1;
+		Global.BallSpawnCountdown = 5;
+		Wait(1, Ignore Condition);
+		Global.RoundInProgress = True;
+		Skip If(!Global.BouncepadDashingEnabled, 2);
+		All Players(All Teams).IsDashEnabled = False;
+		Set Ability 1 Enabled(All Players(All Teams), False);
+		Chase Global Variable At Rate(BallSpawnCountdown, 0, 1, Destination and Rate);
+		Chase Player Variable At Rate(All Players(All Teams), BouncePadCooldown, 0, 1, Destination and Rate);
+	}
+}
+
+rule("Player check")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Alive(Event Player) == True;
+		Custom String("{0}", Event Player) == Custom String("daboss");
+	}
+
+	actions
+	{
+		Kill(Event Player, Null);
+		Wait(1, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("All players dead failsafe")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Number of Living Players(All Teams) == 0;
+		Is Game In Progress == True;
+		Global.TieBreakerActive == False;
+	}
+
+	actions
+	{
+		Global.IsInFinalDuel = False;
+		Skip If(Global.BallIsOut == False, 1);
+		Global.BallDeleteRequested = True;
+		Global.RoundInProgress = False;
+		Stop Chasing Global Variable(BallSpawnCountdown);
+		Resurrect(All Dead Players(All Teams));
+		Small Message(All Players(All Teams), Custom String("All players detected dead! Resetting game."));
+		Stop Chasing Player Variable(All Players(All Teams), BouncePadCooldown);
+		All Players(All Teams).BouncePadCooldown = Global.BouncePadCooldownLength;
+		Global.BallSpawnCountdown = 5;
+		Wait(1, Ignore Condition);
+		Loop If Condition Is True;
+		Wait(2, Ignore Condition);
+		Abort If(!Global.IsEnoughPlayersToStart);
+		Chase Player Variable At Rate(All Players(All Teams), BouncePadCooldown, 0, 1, Destination and Rate);
+		Chase Global Variable At Rate(BallSpawnCountdown, 0, 1, Destination and Rate);
+		Global.RoundInProgress = True;
+		Global.BallPosition = Vector(0, -1, 0);
+	}
+}
+
+rule("dash slow")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Using Ability 1(Event Player) == True;
+	}
+
+	actions
+	{
+		Event Player.moveSpeed = 0;
+		Chase Player Variable At Rate(Event Player, moveSpeed, 100, Max(Event Player.moveSpeed, 16) ^ 1.250, Destination and Rate);
+		While(Event Player.moveSpeed != 100);
+			Set Move Speed(Event Player, Event Player.moveSpeed);
+			Set Gravity(Event Player, Event Player.moveSpeed);
+			Wait(0.100, Ignore Condition);
+		End;
+		Set Move Speed(Event Player, 100);
+		Set Gravity(Event Player, 100);
+	}
+}
+
+rule("Ball bounce off surface")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallIsOut == True;
+		Ray Cast Hit Position(Global.BallPosition, Global.BallPosition + Global.BallDirection * Global.BallSpeed * 0.033, Null,
+			All Players(All Teams), False) != Global.BallPosition + Global.BallDirection * Global.BallSpeed * 0.033;
+		Current Map != Map(Workshop Chamber);
+	}
+
+	actions
+	{
+		"normal of the plane of the surface with which the ball collides, n"
+		Global.BallCollisionSurfaceNormal = Ray Cast Hit Normal(Global.BallPosition,
+			Global.BallPosition + Global.BallDirection * Global.BallSpeed * 0.033, Null, All Players(All Teams), False);
+		"reflected vector formula --- new v = v - 2 * (v•n)/(n•n) * n"
+		Global.BallDirection = Global.BallDirection - 2 * Dot Product(Global.BallDirection, Global.BallCollisionSurfaceNormal)
+			/ Dot Product(Global.BallCollisionSurfaceNormal, Global.BallCollisionSurfaceNormal) * Global.BallCollisionSurfaceNormal;
+		Play Effect(All Players(All Teams), Bad Explosion, White, Global.BallPosition, 1);
+		Wait(0.020, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Ball no down when y < -0.5")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.BallIsOut == True;
+		Y Component Of(Global.BallPosition) < -0.500;
+		Y Component Of(Global.BallDirection) < 0;
+	}
+
+	actions
+	{
+		Global.BallDirection *= Vector(1, 0, 1);
+		Play Effect(All Players(All Teams), Ring Explosion, White, Global.BallPosition, 2);
+	}
+}
+
+rule("Ball change color")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		disabled If(Global.BallColor != 0 && Global.BallSpeed < 20 && True);
+		disabled Destroy Effect(Global.BallSmoke);
+		disabled Destroy Effect(Global.BallTail1);
+		disabled Destroy Effect(Global.BallTail2);
+		disabled Create Effect(All Players(All Teams), Bad Aura, Blue, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Blue,
+			Visible To Position and Radius);
+		disabled Global.BallTail1 = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Blue,
+			Visible To Position and Radius);
+		disabled Global.BallTail2 = Last Created Entity;
+		disabled Global.BallColor = 0;
+		disabled Else If(Global.BallColor != 1 && Global.BallSpeed >= 20 && Global.BallSpeed < 25);
+		disabled Destroy Effect(Global.BallSmoke);
+		disabled Destroy Effect(Global.BallTail1);
+		disabled Destroy Effect(Global.BallTail2);
+		disabled Create Effect(All Players(All Teams), Bad Aura, Green, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Green,
+			Visible To Position and Radius);
+		disabled Global.BallTail1 = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Green,
+			Visible To Position and Radius);
+		disabled Global.BallTail2 = Last Created Entity;
+		disabled Global.BallColor = 1;
+		disabled Else If(Global.BallColor != 2 && Global.BallSpeed >= 25 && Global.BallSpeed < 30);
+		Destroy Effect(Global.BallSmoke);
+		Destroy Effect(Global.BallTail1);
+		Destroy Effect(Global.BallTail2);
+		disabled Create Effect(All Players(All Teams), Bad Aura, Yellow, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Yellow,
+			Visible To Position and Radius);
+		Global.BallTail1 = Last Created Entity;
+		Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Yellow,
+			Visible To Position and Radius);
+		Global.BallTail2 = Last Created Entity;
+		Global.BallColor = 2;
+		disabled Else If(Global.BallColor != 3 && Global.BallSpeed >= 30 && Global.BallSpeed < 35);
+		disabled Destroy Effect(Global.BallSmoke);
+		disabled Destroy Effect(Global.BallTail1);
+		disabled Destroy Effect(Global.BallTail2);
+		disabled Create Effect(All Players(All Teams), Bad Aura, Orange, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Orange,
+			Visible To Position and Radius);
+		disabled Global.BallTail1 = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Orange,
+			Visible To Position and Radius);
+		disabled Global.BallTail2 = Last Created Entity;
+		disabled Global.BallColor = 3;
+		disabled Else If(Global.BallColor != 4 && Global.BallSpeed >= 35 && Global.BallSpeed < 55);
+		disabled Destroy Effect(Global.BallSmoke);
+		disabled Destroy Effect(Global.BallTail1);
+		disabled Destroy Effect(Global.BallTail2);
+		disabled Create Effect(All Players(All Teams), Bad Aura, Red, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Red, Visible To Position and Radius);
+		disabled Global.BallTail1 = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Red, Visible To Position and Radius);
+		disabled Global.BallTail2 = Last Created Entity;
+		disabled Global.BallColor = 4;
+		disabled Else If(Global.BallColor != 5 && Global.BallSpeed >= 55 && True);
+		disabled Destroy Effect(Global.BallSmoke);
+		disabled Destroy Effect(Global.BallTail1);
+		disabled Destroy Effect(Global.BallTail2);
+		disabled Create Effect(All Players(All Teams), Bad Aura, Purple, Global.BallPosition, 1, Visible To Position and Radius);
+		disabled Global.BallSmoke = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.BallPosition, Purple,
+			Visible To Position and Radius);
+		disabled Global.BallTail1 = Last Created Entity;
+		disabled Create Beam Effect(All Players(All Teams), Bad Beam, Global.PrevBallPos, Global.PrevBallPos2, Purple,
+			Visible To Position and Radius);
+		disabled Global.BallTail2 = Last Created Entity;
+		disabled Global.BallColor = 5;
+		disabled End;
+		Wait(1, Ignore Condition);
+		Loop If Condition Is True;
+		Play Effect(All Players(All Teams), Bad Explosion, Green, Global.BallPosition, 2);
+		Play Effect(All Players(All Teams), Bad Explosion, Yellow, Global.BallPosition, 2);
+		Play Effect(All Players(All Teams), Bad Explosion, Orange, Global.BallPosition, 2);
+		Play Effect(All Players(All Teams), Bad Explosion, Red, Global.BallPosition, 2);
+		Play Effect(All Players(All Teams), Bad Explosion, Purple, Global.BallPosition, 4);
+	}
+}
+
+rule("Chamber x collision")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		"This collision is the lazy way but its only for chamber so who cares"
+		Current Map == Map(Workshop Chamber);
+		Global.BallIsOut == True;
+		(X Component Of(Global.BallPosition) + 0.400 >= 20 || X Component Of(Global.BallPosition) - 0.400 <= -20) == True;
+	}
+
+	actions
+	{
+		If((X Component Of(Global.BallPosition) + 0.400 >= 20 && X Component Of(Global.BallDirection) > 0) || (X Component Of(
+			Global.BallPosition) - 0.400 <= -20 && X Component Of(Global.BallDirection) < 0));
+			Global.BallDirection = Vector(X Component Of(Global.BallDirection) * -1, Y Component Of(Global.BallDirection), Z Component Of(
+				Global.BallDirection));
+			Play Effect(All Players(All Teams), Bad Explosion, White, Global.BallPosition, 1);
+		End;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Chamber y collision")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Workshop Chamber);
+		Global.BallIsOut == True;
+		(Y Component Of(Global.BallPosition) + 0.400 >= 40) - (Y Component Of(Global.BallPosition) - 0.400 <= 0) == True;
+	}
+
+	actions
+	{
+		If((Y Component Of(Global.BallPosition) + 0.400 >= 40 && Y Component Of(Global.BallDirection) > 0) || (Y Component Of(
+			Global.BallPosition) - 0.400 <= 0 && Y Component Of(Global.BallDirection) < 0));
+			Global.BallDirection = Vector(X Component Of(Global.BallDirection), Y Component Of(Global.BallDirection) * -1, Z Component Of(
+				Global.BallDirection));
+			Play Effect(All Players(All Teams), Bad Explosion, White, Global.BallPosition, 1);
+		End;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("Chamber z collision")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Workshop Chamber);
+		Global.BallIsOut == True;
+		(Z Component Of(Global.BallPosition) + 0.400 >= 20 || Z Component Of(Global.BallPosition) - 0.400 <= -20) == True;
+	}
+
+	actions
+	{
+		If((Z Component Of(Global.BallPosition) + 0.400 >= 20 && Z Component Of(Global.BallDirection) > 0) || (Z Component Of(
+			Global.BallPosition) - 0.400 <= -20 && Z Component Of(Global.BallDirection) < 0));
+			Global.BallDirection = Vector(X Component Of(Global.BallDirection), Y Component Of(Global.BallDirection), Z Component Of(
+				Global.BallDirection) * -1);
+			Play Effect(All Players(All Teams), Bad Explosion, White, Global.BallPosition, 1);
+		End;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("No Undermaps")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Current Map == Map(Workshop Island Night);
+		Global.BallIsOut == True;
+		Y Component Of(Global.BallPosition) < -2.850;
+		Y Component Of(Global.BallDirection) < 0;
+	}
+
+	actions
+	{
+		Global.BallDirection *= Vector(1, 0, 1);
+		Play Effect(All Players(All Teams), Ring Explosion, White, Global.BallPosition, 2);
+	}
+}
