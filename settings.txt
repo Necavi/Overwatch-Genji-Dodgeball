@@ -379,7 +379,7 @@ rule("Init global variables")
 		Global.MaxBallSpeed = 1000;
 		Global.CenterOffLimitsSize = 3.500;
 		Global.IsInFinalDuel = False;
-		Global.BouncePadCooldownLength = 2;
+		Global.BouncePadCooldownLength = 4;
 		Global.BallPosition = Vector(0, -1, 0);
 	}
 }
