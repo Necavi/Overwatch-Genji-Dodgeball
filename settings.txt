@@ -970,6 +970,7 @@ rule("Workshop Island Ceiling")
 	{
 		(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night)) == True;
 		Y Component Of(Position Of(Event Player)) >= 30;
+		Vertical Speed Of(Event Player) > 0;
 	}
 
 	actions
