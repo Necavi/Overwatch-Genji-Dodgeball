@@ -957,6 +957,29 @@ rule("Player falls off Workshop Island")
 	}
 }
 
+rule("Workshop Island Ceiling")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		(Current Map == Map(Workshop Island) || Current Map == Map(Workshop Island Night)) == True;
+		Y Component Of(Position Of(Event Player)) >= 30;
+	}
+
+	actions
+	{
+		Apply Impulse(Event Player, Down, 1, To World, Incorporate Contrary Motion);
+		Wait(0.050, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
 rule("Bounce when near pad 1")
 {
 	event
